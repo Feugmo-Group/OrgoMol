@@ -11,7 +11,13 @@ Validation, in this sense, is essentially converting your zmat files back to xyz
 
 
 this work here is based on the LLM-prop model trained by Vertaix at Princeton.
-Link to the paper: https://arxiv.org/pdf/2310.14029
+
+@article{rubungo2023llm,
+  title={LLM-Prop: Predicting Physical And Electronic Properties Of Crystalline Solids From Their Text Descriptions},
+  author={Rubungo, Andre Niyongabo and Arnold, Craig and Rand, Barry P and Dieng, Adji Bousso},
+  journal={arXiv preprint arXiv:2310.14029},
+  year={2023}
+}
 
 ## Currently Working On:
 writing data loaders and training script
