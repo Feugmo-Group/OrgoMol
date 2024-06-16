@@ -3,6 +3,7 @@ import numpy as np
 from scipy.spatial.distance import cdist
 from p_tqdm import p_map
 import csv
+import pandas as pd
 
 #goal is to convert zmat back to xyz
 #then check whether the new xyz files are the same as the old xyz files
@@ -71,10 +72,13 @@ def compare(file1:str,file2:str) -> bool:
 
 def validation(dataSet:str) -> None:
       with open(dataSet, "r", newline = '') as myfile:
-            data = csv.reader(myfile)
-            for row in data:
-                print(row)
-                #row.append(str(compare(zFile,xyzFile)))
-                #print(zFile,xyzFile)
+            data = pd.read_csv(myfile, delimiter=',', header= None, skip_blank_lines=True, names=['fileName','text'])
+            status = []
+            for row in data['fileName']:
+                rawRef, *_ = row.partition(".")
+                status.append(str(compare(f'{rawRef}.zmat',f'{rawRef}.xyz')))
                 
+            data.insert(2,"status",status)
+            data.to_csv(dataSet, sep = ",", )
+            
 validation("testSet.csv")

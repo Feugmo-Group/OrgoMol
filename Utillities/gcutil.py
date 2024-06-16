@@ -239,8 +239,8 @@ def write_zmat(xyzarr, distmat, atomnames, outName, rvar=False, avar=False, dvar
 def write_xyz(atomnames, rconnect, rlist, aconnect, alist, dconnect, dlist):
     """Prints out an xyz file from a decomposed z-matrix"""
     npart = len(atomnames)
-    print(npart)
-    print('INSERT TITLE CARD HERE')
+    #print(npart)
+    #print('INSERT TITLE CARD HERE')
     
     # put the first atom at the origin
     xyzarr = np.zeros([npart, 3])
@@ -301,7 +301,9 @@ def write_xyz(atomnames, rconnect, rlist, aconnect, alist, dconnect, dlist):
         new_y = c[1] - bc[1] * x + ncbc[1] * y + nv[1] * z
         new_z = c[2] - bc[2] * x + ncbc[2] * y + nv[2] * z
         xyzarr[n] = [new_x, new_y, new_z]
-            
-    # print results
+        
+    return xyzarr    
+"""    # print results
     for i in range(npart):
-        print('{:<4s}\t{:>11.5f}\t{:>11.5f}\t{:>11.5f}'.format(atomnames[i], xyzarr[i][0], xyzarr[i][1], xyzarr[i][2]))
+        print('{:<4s}\t{:>11.5f}\t{:>11.5f}\t{:>11.5f}'.format(atomnames[i], xyzarr[i][0], xyzarr[i][1], xyzarr[i][2]),file = f)    
+"""       
