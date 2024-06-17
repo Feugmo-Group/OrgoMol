@@ -15,6 +15,10 @@ def z_normalizer(labels):
 
     return scaled_labels
 
+def z_denormalize(scaled_labels, labels_mean, labels_std):
+    labels = (scaled_labels * labels_std) + labels_mean
+    return labels
+
 def min_max_scaling(labels):
     """ Implement a min-max normalization technique"""
     min_val = torch.min(labels)
@@ -23,11 +27,19 @@ def min_max_scaling(labels):
     scaled_labels = (labels - min_val) / diff
     return scaled_labels
 
+def mm_denormalize(scaled_labels, min_val, max_val):
+    diff = max_val - min_val
+    denorm_labels = (scaled_labels * diff) + min_val
+    return denorm_labels
+
 def log_scaling(labels):
     """ Implement log-scaling normalization technique"""
     scaled_labels = torch.log1p(labels)
     return scaled_labels
 
+def ls_denormalize(scaled_labels):
+    denorm_labels = torch.expm1(scaled_labels)
+    return denorm_labels
 
 def tokenize(tokenizer:function, dataframe:pd.DataFrame, maxLength:int):
     """Handles tokenization of your data, prepends CLS tokens and specifies other arguments per LLMProp"""
