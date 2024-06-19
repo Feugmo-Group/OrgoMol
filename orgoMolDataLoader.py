@@ -41,22 +41,30 @@ def ls_denormalize(scaled_labels):
     denorm_labels = torch.expm1(scaled_labels)
     return denorm_labels
 
-def tokenize(tokenizer:function, dataframe:pd.DataFrame, maxLength:int):
+def tokenize(tokenizer:callable, dataframe:pd.DataFrame, maxLength:int, pooling = 'cls'):
     """Handles tokenization of your data, prepends CLS tokens and specifies other arguments per LLMProp"""
-    encodedCorpus = tokenizer(text=["[CLS] " + str(txt) for txt in dataframe.text.tolist()], 
-                                add_special_token = True,
-                                padding = 'max_length',
-                                truncation = 'longest_first',
-                                max_length = maxLength,
-                                return_attention_mask = True)
-    inputIds = encodedCorpus['input_ids']
-    attentionMasks = encodedCorpus['attention_masks']
+    if pooling == 'cls':
+        encoded_corpus = tokenizer(text=["[CLS] " + str(descr) for descr in dataframe.text.tolist()],
+                                    add_special_tokens=True,
+                                    padding='max_length',
+                                    truncation='longest_first',
+                                    max_length=maxLength, # According to ByT5 paper
+                                    return_attention_mask=True)
+    elif pooling == 'mean':
+        encoded_corpus = tokenizer(text=dataframe.text.tolist(),
+                                    add_special_tokens=True,
+                                    padding='max_length',
+                                    truncation='longest_first',
+                                    max_length=maxLength, # According to ByT5 paper
+                                    return_attention_mask=True) 
+        
+    input_ids = encoded_corpus['input_ids']
+    attention_masks = encoded_corpus['attention_mask']
 
-    return inputIds, attentionMasks
-
+    return input_ids, attention_masks
 
 #as of now our training set CSV files does not contain any metric which will need to be added and labelled(VERY IMPORTANT). You would put the pandas column name under property value
-def createDataLoaders(tokenizer, dataframe, maxLength, batchSize, propertyValue="TBD", normalize=False, normalizer='z_norm'):
+def createDataLoaders(tokenizer, dataframe, maxLength, batchSize, propertyValue= 'homoLumoGap', normalize=False, normalizer='z_norm',pooling='cls'):
     """
     Dataloader which arrange the input sequences, attention masks, and labels in batches
     and transform the to tensors
