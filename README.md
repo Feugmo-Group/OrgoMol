@@ -22,6 +22,6 @@ this work here is based on the LLM-prop model trained by Vertaix at Princeton.
 ## Currently Working On:
 ~~sanityCheck script~~
 ~~wrote getProperties~~
-~~writing data loaders~~ and training script
+~~writing data loaders and training script~~
 
 
