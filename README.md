@@ -50,9 +50,20 @@ taskName = "Regression"
 
 
 ## Currently Working On:
-~~sanityCheck script~~
-~~wrote getProperties~~
-~~writing data loaders and training script~~
-Training and tuning hyperparamaters
+
+~~ Training and tuning hyperparamaters ~~
+Changing property units to eV
+
+### Future 
+
+Fixing namesToList
+Fixing xyz conversion so not so specific
+making getProperties get more properties
+adding support for smile conversion
+using rdkit to get functional groups
+Changing how zToText works to create a more natural language problem
+Using preprocessing techniques on data 
+git
+
 
 

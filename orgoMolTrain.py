@@ -282,7 +282,7 @@ def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,train
     totalTrainingTime = trainEndingTime-trainingStartingTime
 
     print("\n========== Training complete ========")
-    print(f"Training LLM_Prop on {property} prediction took {timeFormat(totalTrainingTime)}")
+    print(f"Training orgoMol on {property} prediction took {timeFormat(totalTrainingTime)}")
 
     if taskName == "classification":
         print(f"The lowest roc score achieved on validation set on {property} is {bestRoc} at {bestEpoch}th epoch \n")
@@ -366,7 +366,7 @@ if __name__ == "__main__":
         device = torch.device("cpu")
 
     # set parameters
-    batchSize = 64
+    batchSize = 8
     maxLength = 512
     learningRate = 1E-4
     dropRate = 0.5
@@ -379,7 +379,7 @@ if __name__ == "__main__":
     normalizerType = 'z_norm'
     property = "homoLumoGap"
     optimizerType = "adamw"
-    taskName = "Regression"
+    taskName = "regression"
     trainDataPath = "trainingSet(5000).csv"
     validDataPath = "validationSet(200).csv"
     testDataPath = "testSet(800).csv"
@@ -455,7 +455,7 @@ if __name__ == "__main__":
     # this is to avoid the "RuntimeError: CUDA error: device-side assert triggered" error
     baseModel.resize_token_embeddings(len(tokenizer))
     
-    model = T5Full(baseModel, baseModelOutputSize, drop_rate=dropRate, pooling=pooling)
+    model = T5Full(baseModel, baseModelOutputSize, drop_rate= dropRate, pooling=pooling)
     
     device_ids = [d for d in range(torch.cuda.device_count())]
 
@@ -548,7 +548,7 @@ if __name__ == "__main__":
     print("======= Evaluating on test set ========")
     bestModelPath = f"checkpoints/{taskName}/best_checkpoint_for_{property}.pt" 
     
-    bestModel = T5Full(baseModel, baseModelOutputSize, dropRate=dropRate, pooling=pooling)
+    bestModel = T5Full(baseModel, baseModelOutputSize, drop_rate =dropRate, pooling=pooling)
 
     if torch.cuda.is_available():
         bestModel = nn.DataParallel(bestModel, device_ids=device_ids).cuda()
