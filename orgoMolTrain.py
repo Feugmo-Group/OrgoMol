@@ -143,12 +143,11 @@ def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,train
         epochEndingTime = time.time()
         trainingTime = timeFormat(epochEndingTime - epochStartingTime)
 
-        print(f"Average training loss = {averageTrainingLoss}")
-        print(f"Training for this epoch took {trainingTime}")
+        print(f'Average training loss = {averageTrainingLoss}')
+        print(f'Training for this epoch took {trainingTime}')
 
-        # Validation
         print("")
-        print("Running Validation ....")
+        print("Running Validation ...")
 
         validStartTime = time.time()
 
@@ -375,7 +374,7 @@ if __name__ == "__main__":
     warmupSteps = 10
     #preprocessingStrategy = config.get('preprocessing_strategy')
     tokenizerName = 't5_tokenizer'
-    pooling = 'CLS'
+    pooling = 'cls'
     schedulerType = 'onecycle'
     normalizerType = 'z_norm'
     property = "homoLumoGap"
@@ -505,12 +504,7 @@ if __name__ == "__main__":
             model.parameters(),
             lr = learningRate
         )
-    elif optimizerType == 'sgd':
-        optimizer = SGD(
-            model.parameters(),
-            lr=learningRate
-        )
-        
+
     # set up the scheduler
     totalTrainingSteps = len(trainDataLoader) * epochs 
     if schedulerType == 'linear':
