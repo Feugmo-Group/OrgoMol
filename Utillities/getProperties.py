@@ -12,9 +12,21 @@ def getProperties(dataSet:str, property = None):
         for row in tqdm(data['fileName']):
             rowRaw, *_ = row.partition(".")
             with open(f'{rowRaw}.xyz') as xyz:
-                homoLumoGap.append(xyz.readlines()[1].split()[9])
+                haValue = xyz.readlines()[1].split()[9]
+                evValue = haValue * 27.211386245981
+                homoLumoGap.append(evValue)
         
         data.insert(3,"homoLumoGap",homoLumoGap)
         data.to_csv(f'f{dataSet}')      
-        
-getProperties("(Validated)trainingSet.csv")
+
+def hartreeToEv(dataSet:str, property = None):
+    with open(dataSet, "r", newline='') as myfile:
+        data = pd.read_csv(myfile)
+        gapEv = []
+        for row in tqdm(data[property]):
+            gapEv.append(row * (27.211386245981))
+        data.drop(columns=['homoLumoGap'],inplace=True)
+        data.insert(5,'homoLumoGap',gapEv)
+        data.to_csv(f'eV{dataSet}')  
+
+
