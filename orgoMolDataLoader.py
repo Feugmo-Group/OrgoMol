@@ -47,15 +47,15 @@ def tokenize(tokenizer:callable, dataframe:pd.DataFrame, maxLength:int, pooling 
         encoded_corpus = tokenizer(text=["[CLS] " + str(descr) for descr in dataframe.text.tolist()],
                                     add_special_tokens=True,
                                     padding='max_length',
-                                    truncation='longest_first',
-                                    max_length=maxLength, # According to ByT5 paper
+                                    truncation=True,
+                                    max_length= maxLength, # According to ByT5 paper
                                     return_attention_mask=True)
     elif pooling == 'mean':
         encoded_corpus = tokenizer(text=dataframe.text.tolist(),
                                     add_special_tokens=True,
                                     padding='max_length',
-                                    truncation='longest_first',
-                                    max_length=maxLength, # According to ByT5 paper
+                                    truncation=True,
+                                    max_length= maxLength, # According to ByT5 paper
                                     return_attention_mask=True) 
         
     input_ids = encoded_corpus['input_ids']
