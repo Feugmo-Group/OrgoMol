@@ -33,37 +33,38 @@ this work here is based on the LLM-prop model trained by Vertaix at Princeton.
 
 ## Current HyperParameters
 
-batchSize = 8
-maxLength = 512
-learningRate = 1E-4
-dropRate = 0.5
-epochs = 200
-warmupSteps = 10
-#preprocessingStrategy = config.get('preprocessing_strategy')
-tokenizerName = 't5_tokenizer'
-pooling = 'cls'
-schedulerType = 'onecycle'
-normalizerType = 'z_norm'
-property = "homoLumoGap"
-optimizerType = "adamw"
-taskName = "Regression"
+- batchSize = 8
+- maxLength = 512
+- learningRate = 1E-4
+- dropRate = 0.5
+- epochs = 200
+- warmupSteps = 10
+- preprocessingStrategy = config.get('preprocessing_strategy')
+- tokenizerName = 't5_tokenizer'
+- pooling = 'cls'
+- schedulerType = 'onecycle'
+- normalizerType = 'z_norm'
+- property = "homoLumoGap"
+- optimizerType = "adamw"
+- taskName = "Regression"
 
 
 ## Currently Working On:
 
-~~ Training and tuning hyperparamaters ~~
-Changing property units to eV
+ - ~~Training and tuning hyperparamaters~~
+ - Changing property units to eV
+ - Train on bigger dataset
+
 
 ### Future 
 
-Fixing namesToList
-Fixing xyz conversion so not so specific
-making getProperties get more properties
-adding support for smile conversion
-using rdkit to get functional groups
-Changing how zToText works to create a more natural language problem
-Using preprocessing techniques on data 
-git
+ - Fixing namesToList
+ - Fixing xyz conversion so not so specific
+ - making getProperties get more properties
+ - adding support for smile conversion
+- Using rdkit to get functional groups
+-  Changing how zToText works to create a more natural language problem
+ - Using preprocessing techniques on data
 
 
 
