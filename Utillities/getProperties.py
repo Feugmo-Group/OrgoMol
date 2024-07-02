@@ -12,7 +12,9 @@ def getProperties(dataSet:str, property = None) -> None:
         for row in tqdm(data['fileName']):
             rowRaw, *_ = row.partition(".")
             with open(f'{rowRaw}.xyz') as xyz:
-                homoLumoGap.append(xyz.readlines()[1].split()[9])
+                haValue = xyz.readlines()[1].split()[9]
+                evValue = haValue * 27.211386245981
+                homoLumoGap.append(evValue)
         
         data.insert(3,"homoLumoGap",homoLumoGap)
         data.to_csv(f'f{dataSet}', index=False)      
