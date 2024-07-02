@@ -366,7 +366,7 @@ if __name__ == "__main__":
         device = torch.device("cpu")
 
     # set parameters
-    batchSize = 8
+    batchSize = 64
     maxLength = 512
     learningRate = 1E-4
     dropRate = 0.5
@@ -380,9 +380,9 @@ if __name__ == "__main__":
     property = "homoLumoGap"
     optimizerType = "adamw"
     taskName = "regression"
-    trainDataPath = "trainingSet(5000).csv"
-    validDataPath = "validationSet(200).csv"
-    testDataPath = "testSet(800).csv"
+    trainDataPath = "trainingSet(10000).csv"
+    validDataPath = "validationSet(400).csv"
+    testDataPath = "testSet(1600).csv"
     
     # prepare the data
     trainData = pd.read_csv(trainDataPath)

@@ -11,18 +11,18 @@ def randomSample(numOfSamples:int, seed:int, file:str) -> pd.DataFrame:
         return filterData.sample(numOfSamples, random_state= seed)
     
 
-def sciRandomSample(testPercentage:float,file:str) -> pd.DataFrame:
+def sciRandomSample(file:str) -> pd.DataFrame:
     with open(file,"r") as myfile:
         rawData = pd.read_csv(myfile)
         filterData = rawData.query("status == True", inplace=False)
-        train,test = train_test_split(filterData,train_size=5000, test_size= 1000)
+        train,test = train_test_split(filterData,train_size=10000, test_size= 2000)
         return train,test
     
-trainingData, testData = sciRandomSample(0.0388, "f(Validated)trainingSet.csv")
+trainingData, testData = sciRandomSample("f(Validated)trainingSet.csv")
 
-trainingData.to_csv("trainingSet(5000).csv",sep=",")
+trainingData.to_csv("trainingSet(10000).csv",sep=",")
 
-testData, validationData = train_test_split(testData, train_size=800,test_size=200)
+testData, validationData = train_test_split(testData, train_size=1600,test_size=400)
 
-testData.to_csv("testSet(1000).csv", sep = ",")
-validationData.to_csv("validationSet(200).csv", sep= ",")
+testData.to_csv("testSet(1600).csv", sep = ",")
+validationData.to_csv("validationSet(400).csv", sep= ",")
