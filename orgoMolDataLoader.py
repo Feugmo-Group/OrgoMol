@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from torch.utils.data import DataLoader, TensorDataset
 
+
 #normalizers were taken from llmprop_utils.py
 
 def z_normalizer(labels):
@@ -42,7 +43,11 @@ def ls_denormalize(scaled_labels):
     return denorm_labels
 
 def tokenize(tokenizer:callable, dataframe:pd.DataFrame, maxLength:int, pooling = 'cls'):
-    """Handles tokenization of your data, prepends CLS tokens and specifies other arguments per LLMProp"""
+    """
+    1. Takes in the the list of input sequences and return 
+    the input_ids and attention masks of the tokenized sequences
+    2. max_length = the max length of each input sequence 
+    """
     if pooling == 'cls':
         encoded_corpus = tokenizer(text=["[CLS] " + str(descr) for descr in dataframe.text.tolist()],
                                     add_special_tokens=True,
@@ -90,6 +95,6 @@ def createDataLoaders(tokenizer, dataframe, maxLength, batchSize, propertyValue=
     else:
         dataset = TensorDataset(inputTensor, maskTensor, labelsTensor)
 
-    dataloader = DataLoader(dataset, batch_size=batchSize, shuffle=False) # Set the shuffle to False for now since the labels are continues values check later if this may affect the result
+    dataloader = DataLoader(dataset, batch_size=batchSize, shuffle=False) # Set the shuffle to False for now since the labels are continious values check later if this may affect the result
 
     return dataloader
