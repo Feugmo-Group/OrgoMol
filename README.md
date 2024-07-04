@@ -52,9 +52,10 @@ this work here is based on the LLM-prop model trained by Vertaix at Princeton.
 ## Currently Working On:
 
  - ~~Training and tuning hyperparamaters~~
- - Changing property units to eV
- - Train on bigger dataset
-
+ - ~~Changing property units to eV~~
+ - ~~Train on bigger dataset~~
+-  Changing how zToText works to create a more natural language problem
+ - Using preprocessing techniques on data
 
 ### Future 
 
@@ -63,8 +64,7 @@ this work here is based on the LLM-prop model trained by Vertaix at Princeton.
  - making getProperties get more properties
  - adding support for smile conversion
 - Using rdkit to get functional groups
--  Changing how zToText works to create a more natural language problem
- - Using preprocessing techniques on data
+
 
 
 
