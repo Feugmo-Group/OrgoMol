@@ -31,3 +31,5 @@ def convert(dataSet:str) -> None:
 
 
 convert("validationSet(400).csv")
+convert("testSet(1600).csv")
+convert("trainingSet(10000).csv")
