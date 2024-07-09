@@ -30,6 +30,6 @@ def convert(dataSet:str) -> None:
         data.to_csv(f'{dataSet}', index=False)      
 
 
-convert("validationSet(400).csv")
-convert("testSet(1600).csv")
-convert("trainingSet(10000).csv")
+convert("validationSet(200).csv")
+convert("testSet(800).csv")
+convert("trainingSet(5000).csv")
