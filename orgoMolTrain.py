@@ -201,6 +201,7 @@ def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,train
 
                 # save the best model checkpoint
                 save_to_path = f"checkpoints/{experimentName}/best_checkpoint_for_{property}.pt"
+                save_to_path = f"checkpoints/{experimentName}/best_checkpoint_for_{property}.pt"
                 if isinstance(model, nn.DataParallel):
                     torch.save(model.module.state_dict(), save_to_path)
                     compressCheckpointsWithTar(save_to_path)
@@ -227,6 +228,8 @@ def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,train
 
                 saveCSV(pd.DataFrame(data=trainingStats), f"statistics/{experimentName}/training_stats_for_{property}.csv")
                 saveCSV(pd.DataFrame(validationPredictions), f"statistics/{experimentName}/validation_stats_for_{property}.csv")
+                saveCSV(pd.DataFrame(data=trainingStats), f"statistics/{experimentName}/training_stats_for_{property}.csv")
+                saveCSV(pd.DataFrame(validationPredictions), f"statistics/{experimentName}/validation_stats_for_{property}.csv")
 
             else:
                 bestRoc = bestRoc
@@ -243,6 +246,7 @@ def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,train
                 bestEpoch = epoch+1
                 
                 # save the best model checkpoint
+                save_to_path = f"checkpoints/{experimentName}/best_checkpoint_for_{property}.pt"
                 save_to_path = f"checkpoints/{experimentName}/best_checkpoint_for_{property}.pt"
                 
                 if isinstance(model, nn.DataParallel):
@@ -269,6 +273,8 @@ def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,train
                     }
                 )
 
+                saveCSV(pd.DataFrame(data=trainingStats), f"statistics/{experimentName}/training_stats_for_{property}.csv")
+                saveCSV(pd.DataFrame(validationPredictions), f"statistics/{experimentName}/validation_stats_for_{property}.csv")
                 saveCSV(pd.DataFrame(data=trainingStats), f"statistics/{experimentName}/training_stats_for_{property}.csv")
                 saveCSV(pd.DataFrame(validationPredictions), f"statistics/{experimentName}/validation_stats_for_{property}.csv")
 
@@ -335,6 +341,7 @@ def evaluate(model, maeLossFunction, testDataLoader, trainLabelsMean, trainLabel
     testPredictions = {f"{property}": predictionsList}
 
     saveCSV(pd.DataFrame(testPredictions), f"statistics/{experimentName}/test_stats_for_{property}.csv")
+    saveCSV(pd.DataFrame(testPredictions), f"statistics/{experimentName}/test_stats_for_{property}.csv")
         
     if taskName == "classification":
         testPerformance = getRocScore(predictionsList, targetsList)
@@ -365,6 +372,9 @@ if __name__ == "__main__":
         print("No GPU available, please connect to the GPU first or continue to use CPU instead")
         print('-'*50)
         device = torch.device("cpu")
+        
+    args = args_parser()
+    config = vars(args)
         
     args = args_parser()
     config = vars(args)
@@ -400,6 +410,9 @@ if __name__ == "__main__":
     trainData = preProcess(pd.read_csv(trainDataPath),preProcessingStrategy)
     validData = preProcess(pd.read_csv(validDataPath),preProcessingStrategy)
     testData = preProcess(pd.read_csv(testDataPath),preProcessingStrategy)
+    trainData = preProcess(pd.read_csv(trainDataPath),preProcessingStrategy)
+    validData = preProcess(pd.read_csv(validDataPath),preProcessingStrategy)
+    testData = preProcess(pd.read_csv(testDataPath),preProcessingStrategy)
     
     # check property type to determine the task name (whether it is regression or classification)
     if trainData[property].dtype == 'bool':
@@ -417,6 +430,7 @@ if __name__ == "__main__":
     trainLabelsStd = torch.std(torch.tensor(trainLabelsArray))
     trainLabelsMin = torch.min(torch.tensor(trainLabelsArray))
     trainLabelsMax = torch.max(torch.tensor(trainLabelsArray))
+
 
     # define loss functions
     maeLossFunction = nn.L1Loss()
@@ -557,6 +571,7 @@ if __name__ == "__main__":
         epochs, trainDataLoader, validDataLoader, device, normalizer=normalizerType)
 
     print("======= Evaluating on test set ========")
+    bestModelPath = f"checkpoints/{experimentName}/best_checkpoint_for_{property}.pt" 
     bestModelPath = f"checkpoints/{experimentName}/best_checkpoint_for_{property}.pt" 
     
     bestModel = T5Full(baseModel, baseModelOutputSize, drop_rate =dropRate, pooling=pooling)

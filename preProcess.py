@@ -40,6 +40,7 @@ def get_cleaned_stopwords():
 def removeStop(data:pd.DataFrame) -> pd.DataFrame:
     """remove stop words"""
     stopWords= get_cleaned_stopwords()
+    stopWords= get_cleaned_stopwords()
     for i in data['text']:
         wordTokens = word_tokenize(i)        
         filteredSentence = [w for w in wordTokens if not w.lower() in stopWords]
@@ -47,6 +48,7 @@ def removeStop(data:pd.DataFrame) -> pd.DataFrame:
         data['text'].replace(i,out,inplace=True)
     return data
     
+def replaceNum(data:pd.DataFrame) -> pd.DataFrame:
 def replaceNum(data:pd.DataFrame) -> pd.DataFrame:
     """replace numbers with [num] and angles with [ang]"""
     for sent in data['text']:
