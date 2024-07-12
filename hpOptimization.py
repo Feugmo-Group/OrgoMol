@@ -1,3 +1,8 @@
+import time
+from ax.service.ax_client import AxClient, ObjectiveProperties
+from ax.utils.notebook.plotting import render
+from ax.service.utils.report_utils import exp_to_df
+from submitit import AutoExecutor, LocalJob, DebugJob
 import re
 import glob
 import time
@@ -353,7 +358,7 @@ def evaluate(model, maeLossFunction, testDataLoader, trainLabelsMean, trainLabel
 
     return predictionsList, testPerformance
     
-if __name__ == "__main__":
+def main(lR,mL,bS,dR,pct):
     # check if the GPU is available
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -366,29 +371,15 @@ if __name__ == "__main__":
         print('-'*50)
         device = torch.device("cpu")
         
-    args = args_parser()
-    config = vars(args)
+ 
 
     # set parameters
-    batchSize = config.get('bs')
-    maxLength = config.get('max_len')
-    learningRate = config.get('lr')
-    dropRate = config.get('dr')
-    epochs = config.get('epochs')
-    pctStart = config.get('pct')
-    warmupSteps = config.get('warmup_steps')
-    preProcessingStrategy = config.get('preprocessing_strategy')
-    tokenizerName = config.get('tokenizer')
-    pooling = config.get('pooling')
-    schedulerType = config.get('scheduler')
-    normalizerType = config.get('normalizer')
-    property = config.get('property_name')
-    optimizerType = config.get('optimizer')
-    taskName = config.get('task_name')
-    trainDataPath = config.get('train_data_path')
-    validDataPath = config.get('valid_data_path')
-    testDataPath = config.get('test_data_path')
-    experimentName = config.get('experimentName')
+    batchSize = bS
+    maxLength = mL
+    learningRate = lR
+    dropRate = dR
+    pctStart = pct
+    
     
     if not(os.path.exists(f"checkpoints/{experimentName}")):
         os.mkdir(f"checkpoints/{experimentName}")
@@ -412,11 +403,6 @@ if __name__ == "__main__":
     else:
         taskName = 'regression'
     
-    trainLabelsArray = np.array(trainData[property])
-    trainLabelsMean = torch.mean(torch.tensor(trainLabelsArray))
-    trainLabelsStd = torch.std(torch.tensor(trainLabelsArray))
-    trainLabelsMin = torch.min(torch.tensor(trainLabelsArray))
-    trainLabelsMax = torch.max(torch.tensor(trainLabelsArray))
 
     # define loss functions
     maeLossFunction = nn.L1Loss()
@@ -571,3 +557,94 @@ if __name__ == "__main__":
         bestModel.to(device)
     
     _, test_performance = evaluate(bestModel, maeLossFunction, testDataLoader, trainLabelsMean, trainLabelsStd, trainLabelsMin, trainLabelsMax, property, device, taskName, normalizer=normalizerType)
+
+args = args_parser()
+config = vars(args)
+
+warmupSteps = config.get('warmup_steps')
+preProcessingStrategy = config.get('preprocessing_strategy')
+tokenizerName = config.get('tokenizer')
+pooling = config.get('pooling')
+schedulerType = config.get('scheduler')
+normalizerType = config.get('normalizer')
+property = config.get('property_name')
+optimizerType = config.get('optimizer')
+taskName = config.get('task_name')
+trainDataPath = config.get('train_data_path')
+validDataPath = config.get('valid_data_path')
+testDataPath = config.get('test_data_path')
+experimentName = config.get('experimentName')
+epochs = 50
+
+
+axClient = AxClient()
+
+executor = AutoExecutor(folder="hpOptimization/submititRuns", cluster='slurm') 
+executor.update_parameters(timeout_min=120) # Timeout of the slurm job. Not including slurm scheduling delay.
+executor.update_parameters(cpus_per_task=2)
+executor.update_parameters(gpus_per_node=1)
+executor.update_parameters(slurm_mem=30)
+
+
+
+axClient.create_experiment(
+    name="orgoMol hyperParameter Optimization",
+    parameters=[
+        {
+            "name":"lr",
+            "type":"range",
+            "bounds":[1e-4,0.1],
+            "log_scale":True
+
+        },
+        {
+            "name":"maxLength",
+            "type":"range",
+            "bounds":[500,888]
+        },
+        {
+            "name":"bs",
+            "type":"range",
+            "bounds":[8,64]
+        },
+        {
+            "name":"dropRate",
+            "type":"range",
+            "bounds":[0,0.7],
+            "value_type":"float"
+        },
+        {
+            "name":"pct",
+            "type":"range",
+            "bounds":[0,0.7],
+            "value_type":"float"
+        },
+    ],
+    objectives={"loss":ObjectiveProperties(minimize=True)},
+)
+
+
+total_budget = 10
+num_parallel_jobs = 3
+
+jobs = []
+submitted_jobs = 0
+# Run until all the jobs have finished and our budget is used up.
+while submitted_jobs < total_budget or jobs:
+    for job, trial_index in jobs[:]:
+        # Poll if any jobs completed
+        # Local and debug jobs don't run until .result() is called.
+        if job.done() or type(job) in [LocalJob, DebugJob]:
+            result = job.result()
+            axClient.complete_trial(trial_index=trial_index, raw_data=result)
+            jobs.remove((job, trial_index))
+
+trial_index_to_param, _ = axClient.get_next_trials(
+max_trials=min(num_parallel_jobs - len(jobs), total_budget - submitted_jobs))
+for trial_index, parameters in trial_index_to_param.items():
+    job = executor.submit(main, parameters)
+    submitted_jobs += 1
+    jobs.append((job, trial_index))
+    time.sleep(1)
+
+time.sleep(30)

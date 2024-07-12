@@ -1,25 +1,16 @@
-import re
-import glob
-import time
-import datetime
-from datetime import timedelta
-import tarfile
 
 import numpy as np
 import pandas as pd
 
 import torch
 import torch.nn as nn
-from torch.nn.utils.clip_grad import clip_grad_norm
-from torch.nn.utils import clip_grad_norm_, clip_grad_value_
-from torch.optim import SGD
 import lightning as L
+from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch import seed_everything
+from lightning.pytorch.callbacks import ModelCheckpoint
 
-# add the progress bar
-from tqdm import tqdm
 
-from transformers import AdamW
-from transformers import AutoTokenizer, T5EncoderModel, T5Tokenizer
+from transformers import AutoTokenizer, T5EncoderModel
 from tokenizers.pre_tokenizers import Whitespace
 
 pre_tokenizer = Whitespace()
@@ -27,14 +18,19 @@ pre_tokenizer = Whitespace()
 
 # pre-defined functions
 from orgoMolDataLoader import *
+from preProcess import *
 
 def z_denormalize(scaled_labels, labels_mean, labels_std):
     labels = (scaled_labels * labels_std) + labels_mean
     return labels
 
+def saveCSV(df, where_to_save):
+    df.to_csv(where_to_save, index=False)
+    
+
 class omLightning(L.LightningModule):
-    def __init__(self, base_model, base_model_output_size, n_classes=1, drop_rate=0.1, pooling= 'cls'):
-        super(omLightning, self).__init__()
+    def __init__(self, base_model, base_model_output_size, n_classes=1, drop_rate=0.1,pooling="cls"):
+        super().__init__()
         D_in, D_out = base_model_output_size, n_classes
         self.model = base_model
         self.dropout = nn.Dropout(drop_rate)
@@ -57,30 +53,31 @@ class omLightning(L.LightningModule):
         return input_embedding, outputs
     
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3) #learningrate here
-        trainDataLoader = self.train_dataloader()
+        optimizer = torch.optim.AdamW(self.parameters(), lr=learningRate) 
         lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
             max_lr=learningRate,
             epochs=epochs,
-            steps_per_epoch=len(trainDataLoader),
+            steps_per_epoch=self.trainer.estimated_stepping_batches,
             pct_start=0.3,
         )
-        return [optimizer], [lr_scheduler]
+        return ([optimizer], [lr_scheduler])
     
     def training_step(self, batch, batch_idx):
-        batchInputs, batchMasks, batchLabels, batchNormLabels = batch
+        batchInputs, batchMasks, batchLabels, batchNormLabels = tuple(b for b in batch)
         _, predictions = self(batchInputs,batchMasks)
         loss = maeLoss(predictions.squeeze(), batchNormLabels.squeeze())
+        self.log("trainLoss", loss.to('cuda'), prog_bar=True, on_step=False, on_epoch=True,sync_dist=True)
         return loss
     
     def validation_step(self, batch, batch_idx):
         predictionsList = []
         targetsList = []
+        trainingStats = []
         trainLabelsArray = np.array(trainData[property])
         trainLabelsMean = torch.mean(torch.tensor(trainLabelsArray))
         trainLabelsStd = torch.std(torch.tensor(trainLabelsArray))
-        batchInputs, batchMasks, batchLabels = batch
+        batchInputs, batchMasks, batchLabels = tuple(b for b in batch)
         _,predictions = self(batchInputs,batchMasks)
         predictionsDenorm = z_denormalize(predictions, trainLabelsMean, trainLabelsStd)
         predictions = predictionsDenorm.detach().cpu().numpy()
@@ -91,13 +88,29 @@ class omLightning(L.LightningModule):
         predictionsTensor = torch.tensor(predictionsList)
         targetsTensor = torch.tensor(targetsList)
         val_loss = maeLoss(predictionsTensor.squeeze(),targetsTensor.squeeze()) 
-        self.log("val_loss", val_loss)
-    
+        self.log("valLoss", val_loss.to('cuda'), prog_bar=True, on_step=False, on_epoch=True,sync_dist=True)
+            
     def test_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        test_loss = nn.L1Loss(y_hat, y)
-        self.log("test_loss", test_loss)
+        predictionsList = []
+        targetsList = []
+        batchInputs, batchMasks, batchLabels = tuple(b for b in batch)
+        _, predictions = self(batchInputs,batchMasks)
+        trainLabelsArray = np.array(trainData[property])
+        trainLabelsMean = torch.mean(torch.tensor(trainLabelsArray))
+        trainLabelsStd = torch.std(torch.tensor(trainLabelsArray))
+        predictionsDenorm = z_denormalize(predictions, trainLabelsMean, trainLabelsStd)
+        predictions = predictionsDenorm.detach().cpu().numpy()
+        targets = batchLabels.detach().cpu().numpy()
+        for i in range(len(predictions)):
+            predictionsList.append(predictions[i][0])
+            targetsList.append(targets[i])
+        testPredictions = {f"{property}": predictionsList}
+        saveCSV(pd.DataFrame(testPredictions), f"testStatsFor{experimentName}.csv")    
+        predictionsTensor = torch.tensor(predictionsList)
+        targetsTensor = torch.tensor(targetsList)
+        test_loss = maeLoss(predictionsTensor.squeeze(),targetsTensor.squeeze())
+        self.log("test_loss", test_loss.to('cuda'),sync_dist=True)
+        
     
     def train_dataloader(self):
         return createDataLoaders(
@@ -133,25 +146,52 @@ class omLightning(L.LightningModule):
     
 if __name__ == '__main__':
     maeLoss = nn.L1Loss()
-    testDataPath = "testSet(1600).csv"
-    trainDataPath = "trainingSet(10000).csv"
-    validDataPath = "validationSet(400).csv"
+    #Hyperparameters
+    testDataPath = "testSet(800).csv"
+    trainDataPath = "trainingSet(5000).csv"
+    validDataPath = "validationSet(200).csv"
     batchSize = 8
-    maxLength = 898
+    maxLength = 888
     property = 'homoLumoGap'
     normalizerType = 'z_norm'
-    learningRate = 1e-3
+    learningRate = 1E-3
     epochs = 200
-
-    tokenizer = AutoTokenizer.from_pretrained("t5-small")
+    dropRate=0.5
+    preProcessingStrategy = "None"
+    pooling = "mean"
+    loggerPath = "OrgoMol5K"
+    experimentName = "5KBase"
+    
+    tokenizer = AutoTokenizer.from_pretrained("t5-v1_1-small",local_files_only = True)
     baseModel = T5EncoderModel.from_pretrained("t5-v1_1-small",local_files_only= True)
+    if pooling == 'cls':
+        tokenizer.add_tokens(["[CLS]"])
+    if preProcessingStrategy == 'Both' or "Token":
+        tokenizer.add_tokens('[ANG]')
+        tokenizer.add_tokens('[NUM]')
+    
     baseModelOutputSize = 512
     baseModel.resize_token_embeddings(len(tokenizer))
-
-    trainData = pd.read_csv(trainDataPath)
-    validData = pd.read_csv(validDataPath)
-    testData = pd.read_csv(testDataPath)
+    pad_to_multiple_of = 8
     
-    model = omLightning(baseModel, baseModelOutputSize)
-    trainer = L.Trainer(fast_dev_run = True)
+    
+
+    #checkpointing
+    checkpoint_callback = ModelCheckpoint(
+    save_top_k=5,
+    monitor="valLoss",
+    mode="min",
+    dirpath=f"{loggerPath}/{experimentName}",
+    filename=experimentName+ " -{epoch:02d}-{val_loss:.2f}")
+    
+    
+    trainData = preProcess(pd.read_csv(trainDataPath),preProcessingStrategy)
+    validData = preProcess(pd.read_csv(validDataPath),preProcessingStrategy)
+    testData = preProcess(pd.read_csv(testDataPath),preProcessingStrategy)
+   
+    model = omLightning(baseModel, baseModelOutputSize,drop_rate=dropRate,pooling=pooling)
+    logger = TensorBoardLogger(loggerPath, name=experimentName)
+    seed_everything(50, workers=True)
+    trainer = L.Trainer(logger=logger,deterministic=True,devices=1,num_nodes=1,accelerator='auto',max_epochs=epochs,callbacks=[checkpoint_callback])
     trainer.fit(model)
+    trainer.test(ckpt_path="best")

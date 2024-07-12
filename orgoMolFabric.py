@@ -14,7 +14,7 @@ from torch.nn.utils.clip_grad import clip_grad_norm
 from torch.nn.utils import clip_grad_norm_, clip_grad_value_
 from torch.optim import SGD
 
-import os
+import matplotlib.pyplot as plt
 
 # add the progress bar
 from tqdm import tqdm
@@ -29,17 +29,21 @@ pre_tokenizer = Whitespace()
 # pre-defined functions
 from orgoMolModel import T5Full
 from orgoMolDataLoader import *
-from orgoMolArgsParser import *
 from preProcess import *
+from orgoMolArgsParser import * 
 
 # for metrics
 from torchmetrics.classification import BinaryAUROC
 
-import torch.distributed as dist
+from lightning.fabric import Fabric
 
 # set the random seed for reproducibility
 torch.manual_seed(50)
 np.random.seed(50)
+
+fabric = Fabric()
+fabric.launch()
+fabric.seed_everything(50)
 
 def timeFormat(total_time):
     """
@@ -76,7 +80,7 @@ def getSequenceLenStats(df, tokenizer, max_len):
     return (training_on/len(df))*100
 
 
-def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,trainDataLoader,validDataLoader,device,taskName='regression', normalizer = 'z_norm'):
+def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,trainDataLoader,validDataLoader,taskName='regression', normalizer = 'z_norm'):
     
     trainingStartingTime = time.time()
     trainingStats = []
@@ -100,7 +104,7 @@ def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,train
 
             print(f"Step {step+1}/{len(trainDataLoader)}")
 
-            batchInputs, batchMasks, batchLabels, batchNormLabels = tuple(b.to(device) for b in batch)
+            batchInputs, batchMasks, batchLabels, batchNormLabels = tuple(b for b in batch)
 
             _, predictions = model(batchInputs, batchMasks)
              
@@ -132,7 +136,7 @@ def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,train
                 totalTrainingLoss += maeLoss.item()
             
             # back propagate
-            loss.backward()
+            fabric.backward(loss)
             
             optimizer.step()
             scheduler.step()
@@ -159,7 +163,7 @@ def train(model,optimizer,scheduler,bceLossFunction,maeLossFunction,epochs,train
         targetsList = []
         
         for step, batch in tqdm(enumerate(validDataLoader), total=len(validDataLoader)):
-            batchInputs, batchMasks, batchLabels = tuple(b.to(device) for b in batch)
+            batchInputs, batchMasks, batchLabels = tuple(b for b in batch)
 
             with torch.no_grad():
                 _, predictions = model(batchInputs, batchMasks)
@@ -372,10 +376,9 @@ if __name__ == "__main__":
     # set parameters
     batchSize = config.get('bs')
     maxLength = config.get('max_len')
-    learningRate = config.get('lr')
+    learningRate = config.get('max_len')
     dropRate = config.get('dr')
     epochs = config.get('epochs')
-    pctStart = config.get('pct')
     warmupSteps = config.get('warmup_steps')
     preProcessingStrategy = config.get('preprocessing_strategy')
     tokenizerName = config.get('tokenizer')
@@ -390,12 +393,6 @@ if __name__ == "__main__":
     testDataPath = config.get('test_data_path')
     experimentName = config.get('experimentName')
     
-    if not(os.path.exists(f"checkpoints/{experimentName}")):
-        os.mkdir(f"checkpoints/{experimentName}")
-    if not(os.path.exists(f"statistics/{experimentName}")):
-        os.mkdir(f"statistics/{experimentName}")
-
-
     # prepare the data
     trainData = preProcess(pd.read_csv(trainDataPath),preProcessingStrategy)
     validData = preProcess(pd.read_csv(validDataPath),preProcessingStrategy)
@@ -417,7 +414,7 @@ if __name__ == "__main__":
     trainLabelsStd = torch.std(torch.tensor(trainLabelsArray))
     trainLabelsMin = torch.min(torch.tensor(trainLabelsArray))
     trainLabelsMax = torch.max(torch.tensor(trainLabelsArray))
-
+    
     # define loss functions
     maeLossFunction = nn.L1Loss()
     bceLossFunction = nn.BCEWithLogitsLoss()
@@ -434,9 +431,9 @@ if __name__ == "__main__":
     # add defined special tokens to the tokenizer
     if pooling == 'cls':
         tokenizer.add_tokens(["[CLS]"])
-    if preProcessingStrategy == 'Token' or 'Both':
-        tokenizer.add_tokens(["[NUM]"])
-        tokenizer.add_tokens(["[ANG]"])
+    if preProcessingStrategy == 'Both' or 'Token':
+        tokenizer.add_tokens('[NUM]')
+        tokenizer.add_tokens('[ANG]')
         
     print('-'*50)
     print(f"train data = {len(trainData)} samples")
@@ -464,16 +461,10 @@ if __name__ == "__main__":
 
     # resizing the model input embeddings matrix to adapt to newly added tokens by the new tokenizer
     # this is to avoid the "RuntimeError: CUDA error: device-side assert triggered" error
-    baseModel.resize_token_embeddings(len(tokenizer),pad_to_multiple_of=8)
+    baseModel.resize_token_embeddings(len(tokenizer))
     
     model = T5Full(baseModel, baseModelOutputSize, drop_rate= dropRate, pooling=pooling)
     
-    device_ids = [d for d in range(torch.cuda.device_count())]
-
-    if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model, device_ids=device_ids).cuda()
-    else:
-        model.to(device)
 
     # print the model parameters
     modelTrainableParams = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -535,7 +526,7 @@ if __name__ == "__main__":
             epochs=epochs,
             steps_per_epoch=stepsPerEpoch,
             # pct_start=pct_start,
-            pct_start=pctStart,
+            pct_start=0.3,
         )
     
     elif schedulerType == 'step':
@@ -551,23 +542,19 @@ if __name__ == "__main__":
             optimizer, lambda epoch: 1.0
         )
         
-        
+    model,optimizer = fabric.setup(model,optimizer)   
+    trainDataLoader = fabric.setup_dataloaders(trainDataLoader)
+    validDataLoader = fabric.setup_dataloaders(validDataLoader)
+    testDataLoader = fabric.setup_dataloaders(testDataLoader)
+    
     print("======= Training ... ========")
     training_stats, validation_predictions = train(model, optimizer, scheduler, maeLossFunction, maeLossFunction, 
-        epochs, trainDataLoader, validDataLoader, device, normalizer=normalizerType)
+        epochs, trainDataLoader, validDataLoader,normalizer=normalizerType)
 
     print("======= Evaluating on test set ========")
     bestModelPath = f"checkpoints/{experimentName}/best_checkpoint_for_{property}.pt" 
     
     bestModel = T5Full(baseModel, baseModelOutputSize, drop_rate =dropRate, pooling=pooling)
-
-    if torch.cuda.is_available():
-        bestModel = nn.DataParallel(bestModel, device_ids=device_ids).cuda()
-
-    if isinstance(bestModel, nn.DataParallel):
-        bestModel.module.load_state_dict(torch.load(bestModelPath, map_location=torch.device(device)), strict=False)
-    else:
-        bestModel.load_state_dict(torch.load(bestModelPath, map_location=torch.device(device)), strict=False) 
-        bestModel.to(device)
+    bestModel = fabric.setup(bestModel)
     
     _, test_performance = evaluate(bestModel, maeLossFunction, testDataLoader, trainLabelsMean, trainLabelsStd, trainLabelsMin, trainLabelsMax, property, device, taskName, normalizer=normalizerType)
