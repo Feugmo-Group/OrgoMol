@@ -55,7 +55,7 @@ this work here is based on the LLM-prop model trained by Vertaix at Princeton.
  - ~~Changing property units to eV~~
  - ~~Train on bigger dataset~~
 -  Changing how zToText works to create a more natural language problem
- - Using preprocessing techniques on data
+ - ~~Using preprocessing techniques on data~~
 
 ### Future 
 
