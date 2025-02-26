@@ -1,0 +1,4 @@
+# @package _group_
+
+name: linear
+warmup_steps: 100

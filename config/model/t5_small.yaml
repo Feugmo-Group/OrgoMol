@@ -1,0 +1,5 @@
+# @package _group_
+
+name: t5_small
+base_model: google/t5-v1_1-small
+base_model_output_size: 512

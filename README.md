@@ -1,70 +1,137 @@
-# OrgoMol
-LLM that uses text-decription of organic molecules to predict properties and generate molecules
+# OrgoMol with Hydra Configuration
 
-Currently most of the raw_data and csv file containing the training data sit in a onedrive. They are too big to be put on GitHub
-one can use these scripts to generate that data and maybe in the future I will detail how that can be done
+This repository contains code for training and evaluating machine learning models for molecular property prediction, using Hydra for configuration management.
 
-It is important once you have converted your xyz files to zmat and then to txt files to "validate" your data. This is what the sanityCheck script does.
-At the moment it runs sequentially, a huge draw back as it takes about 30 minutes to run on 130,000 files. In the future it would be beneficial to parallelize this.
+## Setup
 
-Validation, in this sense, is essentially converting your zmat files back to xyz files. Computing a distance matrix for both files. Then comparing their norms and ensuring they agree to some tolerance
+1. Install the required dependencies:
+```bash
+pip install torch transformers hydra-core omegaconf tqdm pandas numpy torchmetrics
+```
 
+2. Ensure your data is in the correct format. The model expects CSV files with columns including:
+   - `zmat_file`: Path to the Z-matrix file for each molecule
+   - Your target property column (specified in the config)
 
-this work here is based on the LLM-prop model trained by Vertaix at Princeton.
+## Directory Structure
 
-@article{rubungo2023llm,
-  title={LLM-Prop: Predicting Physical And Electronic Properties Of Crystalline Solids From Their Text Descriptions},
-  author={Rubungo, Andre Niyongabo and Arnold, Craig and Rand, Barry P and Dieng, Adji Bousso},
-  journal={arXiv preprint arXiv:2310.14029},
-  year={2023}
-}
+```
+.
+├── config/                      # Hydra configuration files
+│   ├── config.yaml              # Main configuration
+│   ├── data/                    # Data configurations
+│   ├── experiment/              # Experiment configurations
+│   ├── model/                   # Model configurations
+│   ├── normalizer/              # Normalizer configurations
+│   ├── optimizer/               # Optimizer configurations
+│   ├── scheduler/               # Scheduler configurations
+│   └── tokenizer/               # Tokenizer configurations
+├── orgoZModel.py                # Model architecture
+├── orgoZDataLoader.py           # Data loading utilities
+├── orgoZTrain_hydra.py          # Training script with Hydra
+├── orgoZEvaluate_hydra.py       # Evaluation script with Hydra
+├── preProcess.py                # Text preprocessing utilities
+├── preProcess_hydra.py          # Preprocessing script with Hydra
+└── ztok.py                      # Custom tokenization for molecular data
+```
 
-## Basic Workflow Outline
+## Using Hydra for Configuration
 
-1. Aquire xyz files from any dataset. Ensure that the xyz files have first line as the number of atoms and then the coordinates with nothing inbetween
-2. Run the namesToList script in the dataset directory to generate a list of all the files in the dataset to feed into ptqdm (not currently working as intended)
-3. Run the zToText script in the dataset directory to convert xyz files to zmat and text files, using the list of names from previous step
-4. Run txtToCsv to store all the text files in a csv files
-5. Use getProperties to use xyz files with properties from qm9 or whatever database to associate txt files with given properties
-6. Conduct sanityCheck at some point to validate data
-7. split dataset into training, validaton and test sets using sampler script
-8. Running orgoMolTraining script with correct paths to training, validation and test sets
-9. 
+### Basic Usage
 
-## Current HyperParameters
+To train a model with the default configuration:
 
-- batchSize = 8
-- maxLength = 512
-- learningRate = 1E-4
-- dropRate = 0.5
-- epochs = 200
-- warmupSteps = 10
-- preprocessingStrategy = config.get('preprocessing_strategy')
-- tokenizerName = 't5_tokenizer'
-- pooling = 'cls'
-- schedulerType = 'onecycle'
-- normalizerType = 'z_norm'
-- property = "homoLumoGap"
-- optimizerType = "adamw"
-- taskName = "Regression"
+```bash
+python orgoZTrain_hydra.py property.name=your_property_name
+```
 
+This will create an output directory in `outputs/` with the experiment name and timestamp. All logs and results will be saved there.
 
-## Currently Working On:
+### Overriding Configuration Values
 
- - ~~Training and tuning hyperparamaters~~
- - ~~Changing property units to eV~~
- - ~~Train on bigger dataset~~
--  Changing how zToText works to create a more natural language problem
- - ~~Using preprocessing techniques on data~~
+You can override any configuration value from the command line:
 
-### Future 
+```bash
+python orgoZTrain_hydra.py property.name=your_property_name training.batch_size=32 optimizer.lr=5e-5
+```
 
- - Fixing namesToList
- - Fixing xyz conversion so not so specific
- - making getProperties get more properties
- - adding support for smile conversion
-- Using rdkit to get functional groups
+### Using Different Configuration Files
 
+To use a different set of configurations:
 
+```bash
+python orgoZTrain_hydra.py experiment=custom_experiment model=t5_large
+```
 
+### Creating New Configuration Files
 
+1. Create a new YAML file in the appropriate config subdirectory
+2. Use it by specifying its name without the `.yaml` extension
+
+Example for a new optimizer configuration (`config/optimizer/sgd.yaml`):
+```yaml
+# @package _group_
+name: sgd
+lr: 0.01
+momentum: 0.9
+```
+
+Then use it with:
+```bash
+python orgoZTrain_hydra.py optimizer=sgd
+```
+
+### Multi-run Experiments
+
+To run multiple experiments with different configurations:
+
+```bash
+python orgoZTrain_hydra.py --multirun optimizer.lr=1e-4,1e-5,1e-6
+```
+
+This will run the experiment three times with different learning rates.
+
+## Preprocessing Data
+
+To preprocess data before training:
+
+```bash
+python preProcess_hydra.py preprocessing.strategy=All
+```
+
+This will apply the specified preprocessing strategy to your data and save the processed files.
+
+## Evaluation
+
+To evaluate a trained model:
+
+```bash
+python orgoZEvaluate_hydra.py property.name=your_property_name
+```
+
+By default, it will look for the best checkpoint in the directory specified in your config.
+
+To evaluate a specific checkpoint:
+
+```bash
+python orgoZEvaluate_hydra.py property.name=your_property_name checkpoint_path=/path/to/checkpoint.pt
+```
+
+## Configuration Structure
+
+The configuration is structured hierarchically:
+
+- **experiment**: General experiment settings (name, seed, etc.)
+- **paths**: Data and output paths
+- **property**: Target property to predict
+- **training**: Training hyperparameters
+- **validation**: Validation settings
+- **testing**: Testing settings
+- **model**: Model architecture settings
+- **optimizer**: Optimizer settings
+- **scheduler**: Learning rate scheduler settings
+- **tokenizer**: Tokenizer settings
+- **normalizer**: Data normalization settings
+- **preprocessing**: Text preprocessing settings
+
+See the configuration files for more details and options.

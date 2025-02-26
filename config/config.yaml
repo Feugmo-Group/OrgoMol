@@ -1,0 +1,88 @@
+# @package _global_
+
+# Experiment configuration
+experiment:
+  name: ${experiment.type}_${model.name}_${optimizer.name}_${now:%Y-%m-%d_%H-%M-%S}
+  type: default
+  seed: 50
+  task_name: auto  # 'auto', 'regression', or 'classification'
+  device: auto  # 'auto', 'cuda', or 'cpu'
+  
+# Default paths (can be overridden)
+paths:
+  train_data_path: data/train.csv
+  valid_data_path: data/valid.csv
+  test_data_path: data/test.csv
+  checkpoint_dir: checkpoints/${experiment.name}
+  statistics_dir: statistics/${experiment.name}
+
+# Property to predict
+property:
+  name: null  # Must be specified by user
+
+# Training configuration
+training:
+  batch_size: 16
+  epochs: 10
+  max_len: 512
+  drop_rate: 0.1
+  pooling: cls  # 'cls' or 'mean'
+  freeze_encoder: false
+  max_grad_norm: 1.0
+  
+# Validation configuration
+validation:
+  batch_size: ${training.batch_size}
+
+# Testing configuration
+testing:
+  batch_size: ${training.batch_size}
+
+# Model defaults
+model:
+  name: t5_small
+  base_model: google/t5-v1_1-small
+  base_model_output_size: 512
+
+# Optimizer defaults
+optimizer:
+  name: adamw
+  lr: 1e-4
+
+# Scheduler defaults
+scheduler:
+  name: onecycle
+  pct: 0.3
+
+# Tokenizer defaults
+tokenizer:
+  name: ztok
+
+# Normalizer defaults
+normalizer:
+  name: z_norm  # 'z_norm', 'mm_norm', 'ls_norm', or 'no_norm'
+
+# Preprocessing strategy
+preprocessing:
+  strategy: None  # 'None', 'All', 'Stop', or 'Token'
+
+# Hydra configuration
+hydra:
+  run:
+    dir: outputs/${experiment.name}
+  sweep:
+    dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}
+  job:
+    chdir: true
+
+# Include other configs
+defaults:
+  - experiment: default
+  - model: t5_small
+  - data: default
+  - optimizer: adamw
+  - scheduler: onecycle
+  - tokenizer: ztok
+  - normalizer: z_norm
+  - _self_  # for config overrides from command line

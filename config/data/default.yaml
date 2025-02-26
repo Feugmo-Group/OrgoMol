@@ -1,0 +1,5 @@
+# @package _group_
+
+train_path: ${paths.train_data_path}
+valid_path: ${paths.valid_data_path}
+test_path: ${paths.test_data_path}
