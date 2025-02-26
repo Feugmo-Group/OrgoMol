@@ -1,6 +1,6 @@
 # OrgoMol with Hydra Configuration
 
-This repository contains code for training and evaluating machine learning models for molecular property prediction, using Hydra for configuration management.
+This repository contains code for training and evaluating T5 based architecture for molecular property prediction, using Hydra for configuration management.
 
 ## Setup
 
